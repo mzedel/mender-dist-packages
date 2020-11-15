@@ -9,7 +9,7 @@ variables:
   # Legacy path for mender-client: <version>/$S3_BUCKET_SUBPATH/...
   S3_BUCKET_SUBPATH: "dist-packages/debian"
   # APT repo path
-  S3_BUCKET_REPO_PATH: "repos/debian"
+  S3_BUCKET_REPO_PATH: "lluis/repos/debian"
   # Set to true to skip tests (i.e. old Mender client build). See QA-123
   SKIP_TESTS: "false"
   # Update the 'latest' debian alias to a new client release
@@ -56,37 +56,37 @@ build:
     paths:
       - output/*
 
-test:acceptance:
-  except:
-    variables:
-      - $SKIP_TESTS == "true"
-  stage: test
-  image: docker:18-dind
-  tags:
-    - mender-qa-slave
-  dependencies:
-    - build
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-  before_script:
-    - /usr/local/bin/dockerd-entrypoint.sh &
-    - sleep 10
-    - export DOCKER_HOST="unix:///var/run/docker.sock"
-    - docker version
-    - apk --update --no-cache add git
-    - git submodule sync --recursive
-    - git submodule update --init --recursive
-  script:
-    - apk --update --no-cache add python3 gcc openssh make openssl-dev libffi-dev libc-dev python3-dev
-    - cd tests
-    - pip3 install --upgrade -r requirements.txt
-    - deb_version=$(cat ${CI_PROJECT_DIR}/output/mender-client-deb-version)
-    - python3 -m pytest -v --mender-client-version $MENDER_VERSION --mender-client-deb-version $deb_version
+# test:acceptance:
+#   except:
+#     variables:
+#       - $SKIP_TESTS == "true"
+#   stage: test
+#   image: docker:18-dind
+#   tags:
+#     - mender-qa-slave
+#   dependencies:
+#     - build
+#   variables:
+#     GIT_SUBMODULE_STRATEGY: recursive
+#   before_script:
+#     - /usr/local/bin/dockerd-entrypoint.sh &
+#     - sleep 10
+#     - export DOCKER_HOST="unix:///var/run/docker.sock"
+#     - docker version
+#     - apk --update --no-cache add git
+#     - git submodule sync --recursive
+#     - git submodule update --init --recursive
+#   script:
+#     - apk --update --no-cache add python3 gcc openssh make openssl-dev libffi-dev libc-dev python3-dev
+#     - cd tests
+#     - pip3 install --upgrade -r requirements.txt
+#     - deb_version=$(cat ${CI_PROJECT_DIR}/output/mender-client-deb-version)
+#     - python3 -m pytest -v --mender-client-version $MENDER_VERSION --mender-client-deb-version $deb_version
 
 publish:s3:apt-repo:
   stage: publish
-  only:
-    - master
+  # only:
+  #   - master
   image: debian:buster
   dependencies:
     - build
@@ -114,10 +114,12 @@ publish:s3:apt-repo:
     - aws s3 cp --recursive s3://$S3_BUCKET_NAME/$S3_BUCKET_REPO_PATH/pool pool
   script:
     # Include the build packages in stable or experimental
+    - find .
     - for change_file in $(ls ${CI_PROJECT_DIR}/output/*.changes); do
     -   reprepro include stable $change_file ||
         reprepro include experimental $change_file
     - done
+    - find .
     # Upload to bucket
     # TODO: use a different bucket?
     # - export AWS_ACCESS_KEY_ID=$REPO_PRIVATE_AWS_ACCESS_KEY_ID
